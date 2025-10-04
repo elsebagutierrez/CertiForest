@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertiForest - Verificación de Deforestación Blockchain</title>
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #34d399;
+            --bg-dark: #0f172a;
+            --bg-darker: #020617;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .demo-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .stepper {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .step:hover {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .step.active {
+            background: rgba(16, 185, 129, 0.2);
+            border-left: 3px solid var(--primary);
+        }
+
+        .step.completed {
+            opacity: 0.7;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-number {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--bg-dark);
+        }
+
+        .step.completed .step-number {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .step.completed .step-number::after {
+            content: '✓';
+            color: white;
+        }
+
+        .step-info {
+            flex: 1;
+        }
+
+        .step-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .step-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .content-header {
+            margin-bottom: 32px;
+        }
+
+        .content-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .content-subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.1);
+        }
+
+        .map-container {
+            background: linear-gradient(135deg, #1e3a2c 0%, #0f2419 100%);
+            border-radius: 12px;
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--border);
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            border: 3px dashed var(--primary);
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .map-overlay.active {
+            opacity: 1;
+            animation: dash 20s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .map-btn {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            font-size: 20px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-btn:hover {
+            background: var(--primary);
+            transform: scale(1.05);
+        }
+
+        .map-info {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 8px;
+            max-width: 300px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .status-badge.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .hash-display {
+            background: var(--bg-darker);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 8px 0;
+        }
+
+        .nft-badge {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            color: white;
+            border: 2px solid var(--primary-light);
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+        }
+
+        .qr-code {
+            width: 150px;
+            height: 150px;
+            background: white;
+            margin: 16px auto;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #000;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: var(--primary);
+            position: absolute;
+            animation: confetti-fall 3s linear;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .info-value {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                z-index: 100;
+                height: 100vh;
+            }
+
+            .sidebar.open {
+                transform: translateX(280px);
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-badge">🌍 Entorno Demo</div>
+
+    <div class="container">
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🌳</div>
+                <div class="logo-text">CertiForest</div>
+            </div>
+
+            <div class="stepper" id="stepper">
+                <div class="step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-info">
+                        <div class="step-title">Definir Predio</div>
+                        <div class="step-desc">Ubicación y área</div>
+                    </div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-info">
+                        <div class="step-title">Analizar Deforestación</div>
+                        <div class="step-desc">MapBiomas API</div>
+                    </div>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-info">
+                        <div class="step-title">Generar Reporte</div>
+                        <div class="step-desc">Certificado + IPFS</div>
+                    </div>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-number">4</div>
+                    <div class="step-info">
+                        <div class="step-title">Registrar Blockchain</div>
+                        <div class="step-desc">Soroban Network</div>
+                    </div>
+                </div>
+                <div class="step" data-step="5">
+                    <div class="step-number">5</div>
+                    <div class="step-info">
+                        <div class="step-title">Liberar Incentivos</div>
+                        <div class="step-desc">Smart Contract</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content" id="mainContent">
+            <!-- Content will be dynamically loaded here -->
+        </main>
+    </div>
+
+    <div class="modal" id="analysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Análisis en Progreso</h2>
+                <button class="close-btn" onclick="closeModal('analysisModal')">×</button>
+            </div>
+            <div id="analysisContent"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Reporte Certificado</h2>
+                <button class="close-btn" onclick="closeModal('reportModal')">×</button>
+            </div>
+            <div id="reportContent"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="blockchainModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Registro Blockchain</h2>
+                <button class="close-btn" onclick="closeModal('blockchainModal')">×</button>
+            </div>
+            <div id="blockchainContent"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="nftModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Sello Digital NFT</h2>
+                <button class="close-btn" onclick="closeModal('nftModal')">×</button>
+            </div>
+            <div id="nftContent"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">
+        <span id="toastIcon">✓</span>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // Global State
+        const state = {
+            currentStep: 1,
+            predio: null,
+            analysis: null,
+            report: null,
+            blockchain: null,
+            ipfsCid: null
+        };
+
+        // Utility Functions
+        function generateHash() {
+            return Array.from({length: 64}, () => 
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+
+        function generateIPFSCid() {
+            const prefix = 'Qm';
+            const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            return prefix + Array.from({length: 44}, () => 
+                chars[Math.floor(Math.random() * chars.length)]
+            ).join('');
+        }
+
+        function generateStellarAddress() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            return 'G' + Array.from({length: 55}, () => 
+                chars[Math.floor(Math.random() * chars.length)]
+            ).join('');
+        }
+
+        function generateTxHash() {
+            return Array.from({length: 64}, () => 
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+
+        function showToast(message, icon = '✓') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastIcon.textContent = icon;
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function updateStep(step) {
+            state.currentStep = step;
+            const steps = document.querySelectorAll('.step');
+            steps.forEach((s, i) => {
+                const stepNum = i + 1;
+                s.classList.remove('active');
+                if (stepNum < step) {
+                    s.classList.add('completed');
+                } else if (stepNum === step) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('completed');
+                }
+            });
+            loadStepContent(step);
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = ['#10b981', '#34d399', '#059669'][Math.floor(Math.random() * 3)];
+                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 30);
+            }
+        }
+
+        // Step Content Loaders
+        function loadStepContent(step) {
+            const content = document.getElementById('mainContent');
+            
+            switch(step) {
+                case 1:
+                    content.innerHTML = getStep1Content();
+                    break;
+                case 2:
+                    content.innerHTML = getStep2Content();
+                    break;
+                case 3:
+                    content.innerHTML = getStep3Content();
+                    break;
+                case 4:
+                    content.innerHTML = getStep4Content();
+                    break;
+                case 5:
+                    content.innerHTML = getStep5Content();
+                    break;
+            }
+        }
+
+        function getStep1Content() {
+            return `
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>›</span>
+                    <span>Nuevo Predio</span>
+                </div>
+
+                <div class="content-header">
+                    <h1 class="content-title">📍 Definir Predio</h1>
+                    <p class="content-subtitle">Dibuja o importa el polígono de tu predio para iniciar la verificación</p>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Mapa Interactivo</h3>
+                    <div class="map-container" id="mapContainer">
+                        <div class="map-overlay" id="mapOverlay"></div>
+                        <div class="map-controls">
+                            <button class="map-btn" onclick="drawPolygon()" title="Dibujar polígono">⬟</button>
+                            <button class="map-btn" onclick="drawRectangle()" title="Dibujar rectángulo">▭</button>
+                            <button class="map-btn" onclick="drawCircle()" title="Dibujar círculo">◯</button>
+                        </div>
+                        <div class="map-info" id="mapInfo">
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                                Haz clic en las herramientas para dibujar
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Importar KML/KMZ</h3>
+                    <div style="border: 2px dashed var(--border); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.3s ease;" 
+                         onclick="importKML()"
+                         onmouseover="this.style.borderColor='var(--primary)'; this.style.background='rgba(16, 185, 129, 0.05)'"
+                         onmouseout="this.style.borderColor='var(--border)'; this.style.background='transparent'">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
+                        <div style="font-weight: 600; margin-bottom: 8px;">Arrastra tu archivo o haz clic para seleccionar</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">Formatos soportados: KML, KMZ</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px;">
+                    <button class="btn" onclick="confirmPredio()" id="confirmBtn" disabled style="opacity: 0.5;">
+                        Confirmar Predio →
+                    </button>
+                </div>
+            `;
+        }
+
+        function getStep2Content() {
+            return `
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>›</span>
+                    <span>Análisis de Deforestación</span>
+                </div>
+
+                <div class="content-header">
+                    <h1 class="content-title">🛰️ Analizar Deforestación</h1>
+                    <p class="content-subtitle">Verificación satelital con MapBiomas API</p>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Información del Predio</h3>
+                    <div class="metric-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">${state.predio.area}</div>
+                            <div class="metric-label">Hectáreas</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${state.predio.lat}</div>
+                            <div class="metric-label">Latitud</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${state.predio.lng}</div>
+                            <div class="metric-label">Longitud</div>
+                        </div>
+                    </div>
+                </div>
+
+                ${state.analysis ? `
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">Resultados del Análisis</h3>
+                        <div class="status-badge ${state.analysis.status === 'approved' ? 'success' : 'error'}" style="margin-bottom: 24px;">
+                            <span>${state.analysis.status === 'approved' ? '✓' : '✗'}</span>
+                            <span>${state.analysis.status === 'approved' ? 'Cumple Criterios' : 'No Cumple Criterios'}</span>
+                        </div>
+
+                        <div class="metric-grid">
+                            <div class="metric-card">
+                                <div class="metric-value">${state.analysis.forestCover}%</div>
+                                <div class="metric-label">Cobertura Forestal</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${state.analysis.deforested}</div>
+                                <div class="metric-label">Hectáreas Deforestadas</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${state.analysis.riskIndex}</div>
+                                <div class="metric-label">Índice de Riesgo</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px;">
+                            <h4 style="margin-bottom: 12px;">Timeline de Cambios</h4>
+                            <div class="info-row">
+                                <span class="info-label">Última verificación</span>
+                                <span class="info-value">${new Date().toLocaleDateString('es-ES')}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Detección más reciente</span>
+                                <span class="info-value">${state.analysis.lastDetection}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">CO₂ Conservado</span>
+                                <span class="info-value">${state.analysis.co2Saved} toneladas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px;">
+                        <button class="btn btn-secondary" onclick="updateStep(1)">← Volver</button>
+                        <button class="btn" onclick="updateStep(3)">Generar Reporte →</button>
+                    </div>
+                ` : `
+                    <div class="card" style="text-align: center; padding: 48px;">
+                        <div style="font-size: 64px; margin-bottom: 16px;">🛰️</div>
+                        <h3 style="margin-bottom: 16px;">Iniciar Análisis Satelital</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 32px;">
+                            Procesaremos imágenes de MapBiomas para detectar cambios en la cobertura forestal
+                        </p>
+                        <button class="btn" onclick="startAnalysis()">Analizar con MapBiomas</button>
+                    </div>
+                `}
+            `;
+        }
+
+        function getStep3Content() {
+            return `
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>›</span>
+                    <span>Generar Reporte</span>
+                </div>
+
+                <div class="content-header">
+                    <h1 class="content-title">📄 Generar Reporte Certificado</h1>
+                    <p class="content-subtitle">Documento verificable almacenado en IPFS</p>
+                </div>
+
+                ${state.report ? `
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">✓ Reporte Generado</h3>
+                        
+                        <div style="background: var(--bg-darker); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                                <div style="font-size: 48px;">📜</div>
+                                <div style="flex: 1;">
+                                    <h4>Certificado de No Deforestación</h4>
+                                    <p style="color: var(--text-secondary); font-size: 14px;">ID: ${state.report.id}</p>
+                                </div>
+                            </div>
+
+                            <div class="info-row">
+                                <span class="info-label">Fecha de Generación</span>
+                                <span class="info-value">${new Date().toLocaleString('es-ES')}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Validez</span>
+                                <span class="info-value">12 meses</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Tamaño</span>
+                                <span class="info-value">${state.report.size} KB</span>
+                            </div>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px;">Metadatos del Documento</h4>
+                        <div style="margin-bottom: 8px;">
+                            <div class="info-label" style="margin-bottom: 4px;">Hash SHA-256</div>
+                            <div class="hash-display">${state.report.hash}</div>
+                        </div>
+
+                        <div style="margin-bottom: 8px;">
+                            <div class="info-label" style="margin-bottom: 4px;">CID IPFS</div>
+                            <div class="hash-display" style="color: var(--primary); cursor: pointer;" onclick="copyToClipboard('${state.ipfsCid}')">
+                                ${state.ipfsCid} 📋
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 24px; padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 24px;">✓</span>
+                                <div>
+                                    <div style="font-weight: 600;">Almacenado en IPFS</div>
+                                    <div style="font-size: 14px; color: var(--text-secondary);">Red distribuida descentralizada</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 12px; margin-top: 24px;">
+                            <button class="btn btn-secondary" onclick="downloadReport()">⬇ Descargar PDF</button>
+                            <button class="btn btn-secondary" onclick="viewReport()">👁 Vista Previa</button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px;">
+                        <button class="btn btn-secondary" onclick="updateStep(2)">← Volver</button>
+                        <button class="btn" onclick="updateStep(4)">Registrar en Blockchain →</button>
+                    </div>
+                ` : `
+                    <div class="card" style="text-align: center; padding: 48px;">
+                        <div style="font-size: 64px; margin-bottom: 16px;">📄</div>
+                        <h3 style="margin-bottom: 16px;">Generar Certificado Digital</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 32px;">
+                            Crearemos un documento PDF certificado y lo almacenaremos en IPFS para garantizar su inmutabilidad
+                        </p>
+                        <button class="btn" onclick="generateReport()">Generar Reporte Certificado</button>
+                    </div>
+                `}
+            `;
+        }
+
+        function getStep4Content() {
+            return `
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>›</span>
+                    <span>Registro Blockchain</span>
+                </div>
+
+                <div class="content-header">
+                    <h1 class="content-title">⛓️ Registrar en Blockchain</h1>
+                    <p class="content-subtitle">Anclaje permanente en Soroban (Stellar Network)</p>
+                </div>
+
+                ${state.blockchain ? `
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">✓ Transacción Confirmada</h3>
+                        
+                        <div style="background: var(--bg-darker); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                            <div style="text-align: center; margin-bottom: 24px;">
+                                <div style="font-size: 64px; margin-bottom: 16px;">✓</div>
+                                <div class="status-badge success">Confirmado en Blockchain</div>
+                            </div>
+
+                            <div class="info-row">
+                                <span class="info-label">Red</span>
+                                <span class="info-value">Soroban Mainnet</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Block Height</span>
+                                <span class="info-value">#${state.blockchain.blockHeight}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Confirmaciones</span>
+                                <span class="info-value">${state.blockchain.confirmations}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Timestamp</span>
+                                <span class="info-value">${new Date(state.blockchain.timestamp).toLocaleString('es-ES')}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Gas Fee</span>
+                                <span class="info-value">0.001 XLM</span>
+                            </div>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px;">Transaction Hash</h4>
+                        <div class="hash-display" style="margin-bottom: 16px; cursor: pointer;" onclick="copyToClipboard('${state.blockchain.txHash}')">
+                            ${state.blockchain.txHash} 📋
+                        </div>
+
+                        <h4 style="margin-bottom: 12px;">Contrato Inteligente</h4>
+                        <div class="hash-display" style="margin-bottom: 24px; cursor: pointer;" onclick="copyToClipboard('${state.blockchain.contractAddress}')">
+                            ${state.blockchain.contractAddress} 📋
+                        </div>
+
+                        <div style="display: flex; gap: 12px;">
+                            <button class="btn btn-secondary" onclick="verifyOnChain()">🔍 Verificar en Blockchain</button>
+                            <button class="btn btn-secondary" onclick="viewExplorer()">🌐 Ver en StellarExpert</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">🏅 Sello Digital NFT</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 24px;">
+                            Tu certificado ha sido convertido en un NFT único e inmutable
+                        </p>
+                        <button class="btn" onclick="showNFT()">Ver Sello Digital</button>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px;">
+                        <button class="btn btn-secondary" onclick="updateStep(3)">← Volver</button>
+                        <button class="btn" onclick="updateStep(5)">Liberar Incentivos →</button>
+                    </div>
+                ` : `
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">Información de Red</h3>
+                        <div class="info-row">
+                            <span class="info-label">Red</span>
+                            <span class="info-value">Soroban Mainnet</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Contrato Inteligente</span>
+                            <span class="info-value" style="font-family: monospace; font-size: 12px;">
+                                CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Costo Estimado</span>
+                            <span class="info-value">0.001 XLM (~$0.0001 USD)</span>
+                        </div>
+                    </div>
+
+                    <div class="card" style="text-align: center; padding: 48px;">
+                        <div style="font-size: 64px; margin-bottom: 16px;">⛓️</div>
+                        <h3 style="margin-bottom: 16px;">Anclar en Blockchain</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 32px;">
+                            Registraremos el hash de tu documento en Soroban para crear un registro inmutable y público
+                        </p>
+                        <button class="btn" onclick="registerBlockchain()">Registrar en Soroban</button>
+                    </div>
+                `}
+            `;
+        }
+
+        function getStep5Content() {
+            return `
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>›</span>
+                    <span>Incentivos</span>
+                </div>
+
+                <div class="content-header">
+                    <h1 class="content-title">💰 Liberar Incentivos</h1>
+                    <p class="content-subtitle">Ejecución automática de smart contracts</p>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Condiciones del Contrato</h3>
+                    <div style="background: var(--bg-darker); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                        <div style="margin-bottom: 16px;">
+                            <div style="font-weight: 600; margin-bottom: 8px;">IF (Condiciones):</div>
+                            <div style="padding-left: 20px; color: var(--text-secondary);">
+                                ✓ Cobertura forestal ≥ 80%<br>
+                                ✓ Deforestación = 0 ha<br>
+                                ✓ Verificación blockchain exitosa
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 8px;">THEN (Acción):</div>
+                            <div style="padding-left: 20px; color: var(--primary);">
+                                → Liberar bono automáticamente
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">$500</div>
+                            <div class="metric-label">Monto Incentivo</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">USDC</div>
+                            <div class="metric-label">Token</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">${state.analysis ? state.analysis.status === 'approved' ? '✓' : '✗' : '⏳'}</div>
+                            <div class="metric-label">Estado</div>
+                        </div>
+                    </div>
+                </div>
+
+                ${state.analysis && state.analysis.status === 'approved' ? `
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">Destinatario</h3>
+                        <div class="info-row">
+                            <span class="info-label">Wallet</span>
+                            <span class="info-value" style="font-family: monospace; font-size: 12px;">
+                                ${generateStellarAddress()}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Agricultor</span>
+                            <span class="info-value">Juan Pérez</span>
+                        </div>
+                    </div>
+
+                    <div class="card" style="text-align: center; padding: 48px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);">
+                        <div style="font-size: 64px; margin-bottom: 16px;">🎉</div>
+                        <h3 style="margin-bottom: 16px; color: var(--primary);">¡Felicitaciones!</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 32px;">
+                            Tu predio cumple todos los criterios. El incentivo está listo para ser liberado.
+                        </p>
+                        <button class="btn" onclick="executeContract()">💰 Ejecutar Contrato y Liberar Fondos</button>
+                    </div>
+                ` : `
+                    <div class="card" style="text-align: center; padding: 48px; background: rgba(239, 68, 68, 0.1);">
+                        <div style="font-size: 64px; margin-bottom: 16px;">⚠️</div>
+                        <h3 style="margin-bottom: 16px;">Condiciones No Cumplidas</h3>
+                        <p style="color: var(--text-secondary);">
+                            El predio no cumple con los criterios mínimos para liberar el incentivo.
+                        </p>
+                    </div>
+                `}
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Historial de Pagos</h3>
+                    <div style="background: var(--bg-darker); border-radius: 8px; padding: 16px;">
+                        <div style="color: var(--text-secondary); text-align: center; padding: 24px;">
+                            No hay pagos registrados aún
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px;">
+                    <button class="btn btn-secondary" onclick="updateStep(4)">← Volver</button>
+                    <button class="btn" onclick="viewDashboard()">Ver Dashboard General</button>
+                </div>
+            `;
+        }
+
+        // Action Functions
+        function drawPolygon() {
+            const overlay = document.getElementById('mapOverlay');
+            const mapInfo = document.getElementById('mapInfo');
+            overlay.classList.add('active');
+            
+            const lat = (-38 + Math.random() * 2).toFixed(6);
+            const lng = (-72 + Math.random() * 2).toFixed(6);
+            const area = (50 + Math.random() * 150).toFixed(2);
+            
+            mapInfo.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px;">Polígono Dibujado</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    <div>Área: ${area} hectáreas</div>
+                    <div>Centro: ${lat}, ${lng}</div>
+                    <div>Puntos: 8</div>
+                </div>
+            `;
+            
+            state.predio = { area, lat, lng };
+            document.getElementById('confirmBtn').disabled = false;
+            document.getElementById('confirmBtn').style.opacity = '1';
+            showToast('Polígono dibujado correctamente', '⬟');
+        }
+
+        function drawRectangle() {
+            drawPolygon(); // Simplified for demo
+        }
+
+        function drawCircle() {
+            drawPolygon(); // Simplified for demo
+        }
+
+        function importKML() {
+            showToast('Archivo importado correctamente', '📁');
+            setTimeout(() => {
+                drawPolygon();
+            }, 1000);
+        }
+
+        function confirmPredio() {
+            showToast('Predio confirmado', '✓');
+            setTimeout(() => {
+                updateStep(2);
+            }, 1000);
+        }
+
+        function startAnalysis() {
+            openModal('analysisModal');
+            const content = document.getElementById('analysisContent');
+            
+            const steps = [
+                { text: 'Conectando con MapBiomas API...', duration: 1500 },
+                { text: 'Procesando imágenes satelitales...', duration: 2500 },
+                { text: 'Calculando métricas de deforestación...', duration: 2000 },
+                { text: 'Generando reporte de análisis...', duration: 1500 }
+            ];
+            
+            let currentStep = 0;
+            
+            function runStep() {
+                if (currentStep < steps.length) {
+                    const step = steps[currentStep];
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 32px;">
+                            <div class="loading-spinner" style="margin-bottom: 24px;"></div>
+                            <div style="font-weight: 600; margin-bottom: 16px;">${step.text}</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${((currentStep + 1) / steps.length * 100)}%"></div>
+                            </div>
+                            <div style="margin-top: 8px; color: var(--text-secondary); font-size: 14px;">
+                                ${Math.round((currentStep + 1) / steps.length * 100)}% completado
+                            </div>
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {
+                        currentStep++;
+                        runStep();
+                    }, step.duration);
+                } else {
+                    completeAnalysis();
+                }
+            }
+            
+            runStep();
+        }
+
+        function completeAnalysis() {
+            const forestCover = 85 + Math.random() * 10;
+            const deforested = (Math.random() * 2).toFixed(2);
+            const riskIndex = Math.random() < 0.8 ? 'Bajo' : 'Medio';
+            const status = forestCover >= 80 && deforested < 5 ? 'approved' : 'rejected';
+            
+            state.analysis = {
+                forestCover: forestCover.toFixed(1),
+                deforested,
+                riskIndex,
+                status,
+                lastDetection: 'Enero 2025',
+                co2Saved: (state.predio.area * 2.5).toFixed(1)
+            };
+            
+            closeModal('analysisModal');
+            showToast('Análisis completado exitosamente', '✓');
+            loadStepContent(2);
+        }
+
+        function generateReport() {
+            openModal('reportModal');
+            const content = document.getElementById('reportContent');
+            
+            content.innerHTML = `
+                <div style="text-align: center; padding: 32px;">
+                    <div class="loading-spinner" style="margin-bottom: 24px;"></div>
+                    <div style="font-weight: 600; margin-bottom: 16px;">Generando reporte certificado...</div>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 32px;">
+                        <div class="loading-spinner" style="margin-bottom: 24px;"></div>
+                        <div style="font-weight: 600; margin-bottom: 16px;">Encriptando documento...</div>
+                    </div>
+                `;
+            }, 1500);
+            
+            setTimeout(() => {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 32px;">
+                        <div class="loading-spinner" style="margin-bottom: 24px;"></div>
+                        <div style="font-weight: 600; margin-bottom: 16px;">Subiendo a red IPFS distribuida...</div>
+                    </div>
+                `;
+            }, 3000);
+            
+            setTimeout(() => {
+                const hash = generateHash();
+                const cid = generateIPFSCid();
+                
+                state.report = {
+                    id: 'RPT-' + Date.now(),
+                    hash: hash,
+                    size: (150 + Math.random() * 100).toFixed(2)
+                };
+                
+                state.ipfsCid = cid;
+                
+                closeModal('reportModal');
+                showToast('Reporte generado y almacenado en IPFS', '✓');
+                createConfetti();
+                loadStepContent(3);
+            }, 5000);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Copiado al portapapeles', '📋');
+            });
+        }
+
+        function downloadReport() {
+            showToast('Descargando reporte...', '⬇');
+        }
+
+        function viewReport() {
+            showToast('Abriendo vista previa...', '👁');
+        }
+
+        function registerBlockchain() {
+            openModal('blockchainModal');
+            const content = document.getElementById('blockchainContent');
+            
+            const steps = [
+                { text: 'Preparando transacción...', duration: 1000 },
+                { text: 'Conectando con wallet Freighter...', duration: 1500 },
+                { text: 'Firmando transacción...', duration: 2000 },
+                { text: 'Broadcasting a la red Soroban...', duration: 1500 },
+                { text: 'Esperando confirmación...', duration: 2500 }
+            ];
+            
+            let currentStep = 0;
+            let blockCount = 0;
+            
+            function runStep() {
+                if (currentStep < steps.length) {
+                    const step = steps[currentStep];
+                    const extra = currentStep === 4 ? `
+                        <div style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">
+                            Bloques confirmados: ${blockCount}/3
+                        </div>
+                    ` : '';
+                    
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 32px;">
+                            <div class="loading-spinner" style="margin-bottom: 24px;"></div>
+                            <div style="font-weight: 600; margin-bottom: 16px;">${step.text}</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${((currentStep + 1) / steps.length * 100)}%"></div>
+                            </div>
+                            ${extra}
+                        </div>
+                    `;
+                    
+                    if (currentStep === 4) {
+                        const interval = setInterval(() => {
+                            blockCount++;
+                            if (blockCount >= 3) {
+                                clearInterval(interval);
+                            }
+                            content.innerHTML = `
+                                <div style="text-align: center; padding: 32px;">
+                                    <div class="loading-spinner" style="margin-bottom: 24px;"></div>
+                                    <div style="font-weight: 600; margin-bottom: 16px;">${step.text}</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${((currentStep + 1) / steps.length * 100)}%"></div>
+                                    </div>
+                                    <div style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">
+                                        Bloques confirmados: ${blockCount}/3
+                                    </div>
+                                </div>
+                            `;
+                        }, 800);
+                    }
+                    
+                    setTimeout(() => {
+                        currentStep++;
+                        runStep();
+                    }, step.duration);
+                } else {
+                    completeBlockchain();
+                }
+            }
+            
+            runStep();
+        }
+
+        function completeBlockchain() {
+            state.blockchain = {
+                txHash: generateTxHash(),
+                contractAddress: generateStellarAddress(),
+                blockHeight: 15234567 + Math.floor(Math.random() * 1000),
+                confirmations: 3,
+                timestamp: Date.now()
+            };
+            
+            closeModal('blockchainModal');
+            showToast('Transacción confirmada en blockchain', '✓');
+            createConfetti();
+            loadStepContent(4);
+        }
+
+        function verifyOnChain() {
+            showToast('Verificación exitosa ✓', '🔍');
+        }
+
+        function viewExplorer() {
+            showToast('Abriendo StellarExpert...', '🌐');
+        }
+
+        function showNFT() {
+            openModal('nftModal');
+            const content = document.getElementById('nftContent');
+            
+            content.innerHTML = `
+                <div class="nft-badge">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🏅</div>
+                    <h3 style="margin-bottom: 8px;">Certificado de No Deforestación</h3>
+                    <div style="opacity: 0.9; margin-bottom: 24px;">NFT Digital Verificable</div>
+                    
+                    <div class="qr-code">
+                        <div style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;">
+                            ${Array.from({length: 64}, () => 
+                                `<div style="background: ${Math.random() > 0.5 ? '#000' : '#fff'}; aspect-ratio: 1;"></div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin-top: 16px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">ID del Predio</div>
+                        <div style="font-weight: 600;">${state.report.id}</div>
+                    </div>
+                    
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin-top: 12px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">Fecha de Emisión</div>
+                        <div style="font-weight: 600;">${new Date().toLocaleDateString('es-ES')}</div>
+                    </div>
+                    
+                    <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin-top: 12px;">
+                        <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px;">Validez</div>
+                        <div style="font-weight: 600;">12 meses</div>
+                    </div>
+                    
+                    <button class="btn" style="margin-top: 24px; width: 100%;" onclick="downloadNFT()">
+                        ⬇ Descargar Sello Digital
+                    </button>
+                </div>
+            `;
+        }
+
+        function downloadNFT() {
+            showToast('Descargando sello digital...', '⬇');
+        }
+
+        function executeContract() {
+            showToast('Ejecutando smart contract...', '💰');
+            
+            setTimeout(() => {
+                showToast('¡Fondos liberados exitosamente!', '✓');
+                createConfetti();
+                
+                setTimeout(() => {
+                    alert('🎉 ¡Proceso completado!\n\n✓ Predio verificado\n✓ Certificado generado\n✓ Registrado en blockchain\n✓ Incentivo liberado\n\n$500 USDC transferidos exitosamente');
+                }, 2000);
+            }, 2000);
+        }
+
+        function viewDashboard() {
+            const content = document.getElementById('mainContent');
+            content.innerHTML = `
+                <div class="breadcrumb">
+                    <span>Dashboard</span>
+                    <span>›</span>
+                    <span>Vista General</span>
+                </div>
+
+                <div class="content-header">
+                    <h1 class="content-title">📊 Dashboard General</h1>
+                    <p class="content-subtitle">Resumen de la plataforma</p>
+                </div>
+
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">247</div>
+                        <div class="metric-label">Predios Registrados</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">94%</div>
+                        <div class="metric-label">Cumplimiento</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">12,450</div>
+                        <div class="metric-label">Toneladas CO₂ Conservadas</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">$123,500</div>
+                        <div class="metric-label">Incentivos Liberados</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Estado de Predios</h3>
+                    <div style="background: var(--bg-darker); border-radius: 12px; padding: 24px;">
+                        <div style="display: flex; gap: 24px; margin-bottom: 24px;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 32px; font-weight: 700; color: var(--success);">232</div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">Aprobados</div>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 32px; font-weight: 700; color: var(--warning);">12</div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">En Revisión</div>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-size: 32px; font-weight: 700; color: var(--error);">3</div>
+                                <div style="color: var(--text-secondary); font-size: 14px;">No Cumplen</div>
+                            </div>
+                        </div>
+                        
+                        <div style="height: 200px; display: flex; align-items: flex-end; gap: 8px;">
+                            ${Array.from({length: 12}, (_, i) => {
+                                const height = 30 + Math.random() * 70;
+                                return `<div style="flex: 1; background: linear-gradient(to top, var(--primary), var(--primary-light)); border-radius: 4px 4px 0 0; height: ${height}%;"></div>`;
+                            }).join('')}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                            <span>Ene</span><span>Feb</span><span>Mar</span><span>Abr</span><span>May</span><span>Jun</span>
+                            <span>Jul</span><span>Ago</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dic</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Últimas Transacciones Blockchain</h3>
+                    <div style="background: var(--bg-darker); border-radius: 12px; overflow: hidden;">
+                        ${Array.from({length: 5}, (_, i) => `
+                            <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px;">
+                                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    ⛓️
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; margin-bottom: 4px;">Registro de Certificado</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); font-family: monospace;">
+                                        ${generateTxHash().substring(0, 16)}...
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 14px; font-weight: 600;">Block #${15234567 - i * 100}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Hace ${i + 1}h</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Impacto Ambiental</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 24px;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">🌳</div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">45,230</div>
+                            <div style="color: var(--text-secondary);">Hectáreas Protegidas</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 24px;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">🌍</div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">12,450</div>
+                            <div style="color: var(--text-secondary);">Toneladas CO₂ Evitadas</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 24px;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">💧</div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">2.3M</div>
+                            <div style="color: var(--text-secondary);">Litros Agua Preservados</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: center; gap: 16px; margin-top: 32px;">
+                    <button class="btn" onclick="updateStep(1)">+ Nuevo Predio</button>
+                    <button class="btn btn-secondary" onclick="exportData()">📥 Exportar Datos</button>
+                </div>
+            `;
+        }
+
+        function exportData() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                predio: state.predio,
+                analysis: state.analysis,
+                report: state.report,
+                blockchain: state.blockchain,
+                ipfsCid: state.ipfsCid
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `certiforest-data-${Date.now()}.json`;
+            a.click();
+            
+            showToast('Datos exportados exitosamente', '📥');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStepContent(1);
+            
+            // Add click handlers to steps
+            document.querySelectorAll('.step').forEach(step => {
+                step.addEventListener('click', () => {
+                    const stepNum = parseInt(step.dataset.step);
+                    if (stepNum <= state.currentStep || step.classList.contains('completed')) {
+                        updateStep(stepNum);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+                
